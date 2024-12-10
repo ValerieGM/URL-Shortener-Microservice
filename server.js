@@ -26,7 +26,7 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use('/public', express.static(`${process.cwd()}/public`));
 
-app.get('/', function (req, res) {
+app.get('/', (req, res) => {
   res.sendFile(process.cwd() + '/views/index.html');
 });
 
@@ -34,36 +34,48 @@ app.post('/api/shorturl', async (req, res) => {
   const url = req.body.url_input;
 
   if (!validUrl.isWebUri(url)) {
-    res.json({ 'error': 'Invalid URL' });
-  } else {
-    urlModel.find()
-      .exec()
-      .then(data => {
-        new urlModel({
-          id: data.length + 1,
-          url: url
-        })
-          .save()
-          .then(() => {
-            res.json({
-              original_url: url,
-              short_url: data.length + 1
-            });
-          })
-          .catch(err => {
-            res.json(err);
-          })
-      })
+    return res.json({ 'error': 'Invalid URL' });
+  }
+  
+  try {
+    const count = await urlModel.countDocuments();
+    const newUrl = new urlModel({
+      id: count + 1,
+      url: url
+    });
+    await newUrl.save();
+    res.json({
+      original_url: url,
+      short_url: count + 1
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
+
 app.get('/api/shorturl/:number', (req, res) => {
-  urlModel.find({ id: req.params.number })
+  const number = parseInt(req.params.number, 10);
+
+  if (isNaN(number)) {
+    return res.status(400).json({ error: 'Invalid ID parameter' });
+  }
+
+  urlModel.findOne({ id: number })
     .exec()
     .then(url => {
-      res.redirect(url[0]["url"])
+      if (!url) {
+        return res.status(404).json({ error: 'No URL found for the given ID' });
+      }
+      res.redirect(url.url);
     })
+    .catch(err => {
+      console.error(err);
+      res.status(500).json({ error: 'Internal server error' });
+    });
 });
+
 
 app.listen(port, function () {
   console.log(`Listening on port ${port}`);
