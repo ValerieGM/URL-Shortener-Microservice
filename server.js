@@ -31,7 +31,9 @@ app.get('/', (req, res) => {
 });
 
 app.post('/api/shorturl', async (req, res) => {
-  const url = req.body.url_input;
+  const url = req.body.url;
+
+  console.log('URL:: ', req.body.url);
 
   if (!validUrl.isWebUri(url)) {
     return res.json({ 'error': 'Invalid URL' });
